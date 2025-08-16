@@ -288,7 +288,7 @@ async function executeFlutterApp({
     if (message.includes("Flutter run key commands")) {
       safeSend(event.sender, "app:output", {
         type: "stdout",
-        message: "[dyad-flutter] Flutter macOS app is running. Use 'r' for hot reload, 'R' for hot restart.",
+        message: "[dyad-flutter] Flutter macOS app is running. Hot reload/restart available via UI buttons.",
         appId,
       });
     }
