@@ -17,7 +17,6 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Console } from "./Console";
 import { useRunApp } from "@/hooks/useRunApp";
 import { PublishPanel } from "./PublishPanel";
-import { useLoadApp } from "@/hooks/useLoadApp";
 
 // Helper function to detect if an app is a Flutter project
 function isFlutterProject(app: any): boolean {

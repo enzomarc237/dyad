@@ -8,16 +8,19 @@ import { IpcClient } from "@/ipc/ipc_client";
 import { showError } from "@/lib/toast";
 
 export function FlutterPreview() {
-  const { runApp, stopApp, isRunning } = useRunApp();
+  const { runApp, stopApp, loading } = useRunApp();
   const selectedAppId = useAtomValue(selectedAppIdAtom);
+  const [isRunning, setIsRunning] = React.useState(false);
 
   const handleToggleApp = async () => {
     if (!selectedAppId) return;
     
     if (isRunning) {
-      await stopApp();
+      await stopApp(selectedAppId);
+      setIsRunning(false);
     } else {
-      await runApp();
+      await runApp(selectedAppId);
+      setIsRunning(true);
     }
   };
 

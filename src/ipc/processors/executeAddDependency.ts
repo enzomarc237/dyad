@@ -4,16 +4,9 @@ import { eq } from "drizzle-orm";
 import { Message } from "../ipc_types";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import fs from "node:fs";
-import path from "node:path";
+import { isFlutterProject } from "../utils/project_utils";
 
 export const execPromise = promisify(exec);
-
-// Helper function to detect if an app is a Flutter project
-function isFlutterProject(appPath: string): boolean {
-  const pubspecPath = path.join(appPath, "pubspec.yaml");
-  return fs.existsSync(pubspecPath);
-}
 
 export async function executeAddDependency({
   packages,

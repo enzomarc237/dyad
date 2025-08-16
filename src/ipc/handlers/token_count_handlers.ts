@@ -5,14 +5,7 @@ import {
   constructSystemPrompt,
   readAiRules,
 } from "../../prompts/system_prompt";
-import fs from "node:fs";
-import path from "node:path";
-
-// Helper function to detect if an app is a Flutter project
-function isFlutterProject(appPath: string): boolean {
-  const pubspecPath = path.join(appPath, "pubspec.yaml");
-  return fs.existsSync(pubspecPath);
-}
+import { isFlutterProject } from "../utils/project_utils";
 import {
   SUPABASE_AVAILABLE_SYSTEM_PROMPT,
   SUPABASE_NOT_AVAILABLE_SYSTEM_PROMPT,

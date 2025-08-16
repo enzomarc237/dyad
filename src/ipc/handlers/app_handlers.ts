@@ -49,6 +49,7 @@ import { normalizePath } from "../../../shared/normalizePath";
 import { isServerFunction } from "@/supabase_admin/supabase_utils";
 import { getVercelTeamSlug } from "../utils/vercel_utils";
 import { storeDbTimestampAtCurrentVersion } from "../utils/neon_timestamp_utils";
+import { isFlutterProject } from "../utils/project_utils";
 
 async function copyDir(
   source: string,
@@ -77,12 +78,6 @@ let proxyWorker: Worker | null = null;
 // Needed, otherwise electron in MacOS/Linux will not be able
 // to find node/pnpm.
 fixPath();
-
-// Helper function to detect if an app is a Flutter project
-function isFlutterProject(appPath: string): boolean {
-  const pubspecPath = path.join(appPath, "pubspec.yaml");
-  return fs.existsSync(pubspecPath);
-}
 
 async function executeApp({
   appPath,
