@@ -48,6 +48,7 @@ import { getExtraProviderOptions } from "../utils/thinking_utils";
 import { safeSend } from "../utils/safe_sender";
 import { cleanFullResponse } from "../utils/cleanFullResponse";
 import { generateProblemReport } from "../processors/tsc";
+import { isFlutterProject } from "../utils/project_utils";
 import { createProblemFixPrompt } from "@/shared/problem_prompt";
 import { AsyncVirtualFileSystem } from "../../../shared/VirtualFilesystem";
 import {
@@ -472,8 +473,9 @@ ${componentSnippet}
         }
 
         let systemPrompt = constructSystemPrompt({
-          aiRules: await readAiRules(getDyadAppPath(updatedChat.app.path)),
+          aiRules: await readAiRules(appPath),
           chatMode: settings.selectedChatMode,
+          isFlutterProject: isFlutterProject(appPath),
         });
 
         // Add information about mentioned apps if any

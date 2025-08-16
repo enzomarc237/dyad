@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { Message } from "../ipc_types";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { isFlutterProject } from "../utils/project_utils";
 
 export const execPromise = promisify(exec);
 
@@ -17,13 +18,20 @@ export async function executeAddDependency({
   appPath: string;
 }) {
   const packageStr = packages.join(" ");
+  let command: string;
+  
+  // Check if this is a Flutter project
+  if (isFlutterProject(appPath)) {
+    // For Flutter projects, use flutter pub add
+    command = `flutter pub add ${packageStr}`;
+  } else {
+    // For web projects, use npm/pnpm
+    command = `(pnpm add ${packageStr}) || (npm install --legacy-peer-deps ${packageStr})`;
+  }
 
-  const { stdout, stderr } = await execPromise(
-    `(pnpm add ${packageStr}) || (npm install --legacy-peer-deps ${packageStr})`,
-    {
-      cwd: appPath,
-    },
-  );
+  const { stdout, stderr } = await execPromise(command, {
+    cwd: appPath,
+  });
   const installResults = stdout + (stderr ? `\n${stderr}` : "");
 
   // Update the message content with the installation results

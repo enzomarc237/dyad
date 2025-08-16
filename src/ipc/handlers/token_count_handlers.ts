@@ -5,6 +5,7 @@ import {
   constructSystemPrompt,
   readAiRules,
 } from "../../prompts/system_prompt";
+import { isFlutterProject } from "../utils/project_utils";
 import {
   SUPABASE_AVAILABLE_SYSTEM_PROMPT,
   SUPABASE_NOT_AVAILABLE_SYSTEM_PROMPT,
@@ -60,9 +61,11 @@ export function registerTokenCountHandlers() {
       const mentionedAppNames = parseAppMentions(req.input);
 
       // Count system prompt tokens
+      const appPath = getDyadAppPath(chat.app.path);
       let systemPrompt = constructSystemPrompt({
-        aiRules: await readAiRules(getDyadAppPath(chat.app.path)),
+        aiRules: await readAiRules(appPath),
         chatMode: settings.selectedChatMode,
+        isFlutterProject: isFlutterProject(appPath),
       });
       let supabaseContext = "";
 
@@ -85,7 +88,6 @@ export function registerTokenCountHandlers() {
       let codebaseTokens = 0;
 
       if (chat.app) {
-        const appPath = getDyadAppPath(chat.app.path);
         codebaseInfo = (
           await extractCodebase({
             appPath,

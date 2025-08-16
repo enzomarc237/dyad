@@ -33,6 +33,8 @@ const validInvokeChannels = [
   "run-app",
   "stop-app",
   "restart-app",
+  "flutter-hot-reload",
+  "flutter-hot-restart",
   "respond-to-app-input",
   "list-versions",
   "revert-version",

@@ -8,6 +8,7 @@ import {
 
 import { CodeView } from "./CodeView";
 import { PreviewIframe } from "./PreviewIframe";
+import { FlutterPreview } from "./FlutterPreview";
 import { Problems } from "./Problems";
 import { ConfigurePanel } from "./ConfigurePanel";
 import { ChevronDown, ChevronUp, Logs } from "lucide-react";
@@ -16,6 +17,7 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Console } from "./Console";
 import { useRunApp } from "@/hooks/useRunApp";
 import { PublishPanel } from "./PublishPanel";
+import { isFlutterProjectFromFiles } from "@/shared/project_utils";
 
 interface ConsoleHeaderProps {
   isOpen: boolean;
@@ -56,55 +58,61 @@ export function PreviewPanel() {
   const runningAppIdRef = useRef<number | null>(null);
   const key = useAtomValue(previewPanelKeyAtom);
   const appOutput = useAtomValue(appOutputAtom);
+  
+  // Check if the current app is a Flutter project
+  const isFlutter = app?.files ? isFlutterProjectFromFiles(app.files) : false;
 
   const messageCount = appOutput.length;
   const latestMessage =
     messageCount > 0 ? appOutput[messageCount - 1]?.message : undefined;
 
+  // Effect to handle stopping previous app when selectedAppId changes
   useEffect(() => {
     const previousAppId = runningAppIdRef.current;
 
-    // Check if the selected app ID has changed
-    if (selectedAppId !== previousAppId) {
-      // Stop the previously running app, if any
-      if (previousAppId !== null) {
-        console.debug("Stopping previous app", previousAppId);
-        stopApp(previousAppId);
-        // We don't necessarily nullify the ref here immediately,
-        // let the start of the next app update it or unmount handle it.
-      }
-
-      // Start the new app if an ID is selected
-      if (selectedAppId !== null) {
-        console.debug("Starting new app", selectedAppId);
-        runApp(selectedAppId); // Consider adding error handling for the promise if needed
-        runningAppIdRef.current = selectedAppId; // Update ref to the new running app ID
-      } else {
-        // If selectedAppId is null, ensure no app is marked as running
-        runningAppIdRef.current = null;
-      }
+    // Stop the previously running app if the selected app ID has changed
+    if (selectedAppId !== previousAppId && previousAppId !== null) {
+      console.debug("Stopping previous app", previousAppId);
+      stopApp(previousAppId);
+      runningAppIdRef.current = null;
     }
+  }, [selectedAppId, stopApp]);
 
-    // Cleanup function: This runs when the component unmounts OR before the effect runs again.
-    // We only want to stop the app on actual unmount. The logic above handles stopping
-    // when the appId changes. So, we capture the running appId at the time the effect renders.
-    const appToStopOnUnmount = runningAppIdRef.current;
-    return () => {
-      if (appToStopOnUnmount !== null) {
-        const currentRunningApp = runningAppIdRef.current;
-        if (currentRunningApp !== null) {
-          console.debug(
-            "Component unmounting or selectedAppId changing, stopping app",
-            currentRunningApp,
-          );
-          stopApp(currentRunningApp);
-          runningAppIdRef.current = null; // Clear ref on stop
+  // Effect to handle auto-starting apps (but only after app data is loaded)
+  useEffect(() => {
+    // Only proceed if we have both selectedAppId and app data
+    if (selectedAppId !== null && app !== null && app !== undefined) {
+      const currentRunningApp = runningAppIdRef.current;
+      
+      // Only start if not already running this app
+      if (currentRunningApp !== selectedAppId) {
+        // Skip auto-start for Flutter projects - FlutterPreview will handle it manually
+        if (!isFlutter) {
+          console.debug("Starting new app", selectedAppId);
+          runApp(selectedAppId);
+          runningAppIdRef.current = selectedAppId;
+        } else {
+          console.debug("Skipping auto-start for Flutter app", selectedAppId);
+          runningAppIdRef.current = null; // Flutter apps are controlled manually
         }
       }
+    } else if (selectedAppId === null) {
+      // If selectedAppId is null, ensure no app is marked as running
+      runningAppIdRef.current = null;
+    }
+  }, [selectedAppId, app, isFlutter, runApp]);
+
+  // Cleanup effect for unmounting
+  useEffect(() => {
+    return () => {
+      const currentRunningApp = runningAppIdRef.current;
+      if (currentRunningApp !== null) {
+        console.debug("Component unmounting, stopping app", currentRunningApp);
+        stopApp(currentRunningApp);
+        runningAppIdRef.current = null;
+      }
     };
-    // Dependencies: run effect when selectedAppId changes.
-    // runApp/stopApp are stable due to useCallback.
-  }, [selectedAppId, runApp, stopApp]);
+  }, [stopApp]);
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
@@ -112,7 +120,11 @@ export function PreviewPanel() {
           <Panel id="content" minSize={30}>
             <div className="h-full overflow-y-auto">
               {previewMode === "preview" ? (
-                <PreviewIframe key={key} loading={loading} />
+                isFlutter ? (
+                  <FlutterPreview />
+                ) : (
+                  <PreviewIframe key={key} loading={loading} />
+                )
               ) : previewMode === "code" ? (
                 <CodeView loading={loading} app={app} />
               ) : previewMode === "configure" ? (

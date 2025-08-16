@@ -418,6 +418,26 @@ export class IpcClient {
     }
   }
 
+  // Flutter hot reload
+  public async flutterHotReload(appId: number): Promise<void> {
+    try {
+      await this.ipcRenderer.invoke("flutter-hot-reload", { appId });
+    } catch (error) {
+      showError(error);
+      throw error;
+    }
+  }
+
+  // Flutter hot restart
+  public async flutterHotRestart(appId: number): Promise<void> {
+    try {
+      await this.ipcRenderer.invoke("flutter-hot-restart", { appId });
+    } catch (error) {
+      showError(error);
+      throw error;
+    }
+  }
+
   // Respond to an app input request (y/n prompts)
   public async respondToAppInput(
     params: RespondToAppInputParams,
