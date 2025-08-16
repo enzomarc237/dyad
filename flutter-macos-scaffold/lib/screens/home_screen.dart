@@ -42,7 +42,7 @@ class HomeScreen extends StatelessWidget {
           );
         },
         tooltip: 'Say Hello',
-        child: const Icon(Icons.waving_hand),
+        child: const Icon(Icons.favorite),
       ),
     );
   }
