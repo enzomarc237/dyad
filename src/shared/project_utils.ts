@@ -3,5 +3,5 @@
  * by checking the files array (for renderer side usage)
  */
 export function isFlutterProjectFromFiles(files: string[]): boolean {
-  return files.some((file: string) => file === "pubspec.yaml");
+  return files.some((file: string) => file.endsWith('/pubspec.yaml') || file === 'pubspec.yaml');
 }

@@ -759,7 +759,6 @@ export function registerAppHandlers() {
               // For Flutter projects, clean build cache
               logger.log(`Cleaning Flutter build cache for app ${appId}`);
               try {
-                const { spawn } = await import("node:child_process");
                 const cleanProcess = spawn("flutter", ["clean"], {
                   cwd: appPath,
                   stdio: "pipe",
