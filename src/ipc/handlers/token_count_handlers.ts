@@ -88,7 +88,6 @@ export function registerTokenCountHandlers() {
       let codebaseTokens = 0;
 
       if (chat.app) {
-        const appPath = getDyadAppPath(chat.app.path);
         codebaseInfo = (
           await extractCodebase({
             appPath,

@@ -1,5 +1,5 @@
 import React from "react";
-import { Monitor, Smartphone, Play, Square, RotateCcw, RefreshCw } from "lucide-react";
+import { Monitor, Play, Square, RotateCcw, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRunApp } from "@/hooks/useRunApp";
 import { useAtomValue } from "jotai";
