@@ -78,6 +78,12 @@ let proxyWorker: Worker | null = null;
 // to find node/pnpm.
 fixPath();
 
+// Helper function to detect if an app is a Flutter project
+function isFlutterProject(appPath: string): boolean {
+  const pubspecPath = path.join(appPath, "pubspec.yaml");
+  return fs.existsSync(pubspecPath);
+}
+
 async function executeApp({
   appPath,
   appId,
@@ -93,7 +99,13 @@ async function executeApp({
     proxyWorker.terminate();
     proxyWorker = null;
   }
-  await executeAppLocalNode({ appPath, appId, event, isNeon });
+  
+  // Check if this is a Flutter project
+  if (isFlutterProject(appPath)) {
+    await executeFlutterApp({ appPath, appId, event });
+  } else {
+    await executeAppLocalNode({ appPath, appId, event, isNeon });
+  }
 }
 
 async function executeAppLocalNode({
@@ -222,6 +234,100 @@ async function executeAppLocalNode({
   });
 }
 
+async function executeFlutterApp({
+  appPath,
+  appId,
+  event,
+}: {
+  appPath: string;
+  appId: number;
+  event: Electron.IpcMainInvokeEvent;
+}): Promise<void> {
+  // For Flutter apps, we run flutter run -d macos
+  const spawnedProcess = spawn(
+    "flutter run -d macos --debug",
+    [],
+    {
+      cwd: appPath,
+      shell: true,
+      stdio: "pipe",
+      detached: false,
+    },
+  );
+
+  // Check if process spawned correctly
+  if (!spawnedProcess.pid) {
+    let errorOutput = "";
+    spawnedProcess.stderr?.on("data", (data) => (errorOutput += data));
+    await new Promise((resolve) => spawnedProcess.on("error", resolve));
+    throw new Error(
+      `Failed to spawn Flutter process for app ${appId}. Error: ${
+        errorOutput || "Unknown spawn error"
+      }`,
+    );
+  }
+
+  // Increment the counter and store the process reference with its ID
+  const currentProcessId = processCounter.increment();
+  runningApps.set(appId, {
+    process: spawnedProcess,
+    processId: currentProcessId,
+  });
+
+  // Log output
+  spawnedProcess.stdout?.on("data", async (data) => {
+    const message = util.stripVTControlCharacters(data.toString());
+    logger.debug(
+      `Flutter App ${appId} (PID: ${spawnedProcess.pid}) stdout: ${message}`,
+    );
+
+    // Send normal stdout handling
+    safeSend(event.sender, "app:output", {
+      type: "stdout",
+      message,
+      appId,
+    });
+
+    // Flutter apps don't run on localhost like web apps, so no proxy needed
+    // But we can detect when the app is ready
+    if (message.includes("Flutter run key commands")) {
+      safeSend(event.sender, "app:output", {
+        type: "stdout",
+        message: "[dyad-flutter] Flutter macOS app is running. Use 'r' for hot reload, 'R' for hot restart.",
+        appId,
+      });
+    }
+  });
+
+  spawnedProcess.stderr?.on("data", (data) => {
+    const message = util.stripVTControlCharacters(data.toString());
+    logger.error(
+      `Flutter App ${appId} (PID: ${spawnedProcess.pid}) stderr: ${message}`,
+    );
+    safeSend(event.sender, "app:output", {
+      type: "stderr",
+      message,
+      appId,
+    });
+  });
+
+  // Handle process exit/close
+  spawnedProcess.on("close", (code, signal) => {
+    logger.log(
+      `Flutter App ${appId} (PID: ${spawnedProcess.pid}) process closed with code ${code}, signal ${signal}.`,
+    );
+    removeAppIfCurrentProcess(appId, spawnedProcess);
+  });
+
+  // Handle errors during process lifecycle
+  spawnedProcess.on("error", (err) => {
+    logger.error(
+      `Error in Flutter app ${appId} (PID: ${spawnedProcess.pid}) process: ${err.message}`,
+    );
+    removeAppIfCurrentProcess(appId, spawnedProcess);
+  });
+}
+
 // Helper to kill process on a specific port (cross-platform, using kill-port)
 async function killProcessOnPort(port: number): Promise<void> {
   try {
@@ -235,6 +341,38 @@ export function registerAppHandlers() {
   handle("restart-dyad", async () => {
     app.relaunch();
     app.quit();
+  });
+
+  // Flutter hot reload handler
+  handle("flutter-hot-reload", async (_, { appId }: { appId: number }) => {
+    const appInfo = runningApps.get(appId);
+    if (!appInfo) {
+      throw new Error(`Flutter app ${appId} is not running`);
+    }
+
+    const { process } = appInfo;
+    if (process.stdin && process.stdin.writable) {
+      process.stdin.write("r\n");
+      logger.log(`Sent hot reload command to Flutter app ${appId}`);
+    } else {
+      throw new Error(`Cannot send hot reload command to Flutter app ${appId}`);
+    }
+  });
+
+  // Flutter hot restart handler
+  handle("flutter-hot-restart", async (_, { appId }: { appId: number }) => {
+    const appInfo = runningApps.get(appId);
+    if (!appInfo) {
+      throw new Error(`Flutter app ${appId} is not running`);
+    }
+
+    const { process } = appInfo;
+    if (process.stdin && process.stdin.writable) {
+      process.stdin.write("R\n");
+      logger.log(`Sent hot restart command to Flutter app ${appId}`);
+    } else {
+      throw new Error(`Cannot send hot restart command to Flutter app ${appId}`);
+    }
   });
 
   handle(
@@ -620,20 +758,49 @@ export function registerAppHandlers() {
 
           const appPath = getDyadAppPath(app.path);
 
-          // Remove node_modules if requested
+          // Handle cleanup for rebuild if requested
           if (removeNodeModules) {
-            const nodeModulesPath = path.join(appPath, "node_modules");
-            logger.log(
-              `Removing node_modules for app ${appId} at ${nodeModulesPath}`,
-            );
-            if (fs.existsSync(nodeModulesPath)) {
-              await fsPromises.rm(nodeModulesPath, {
-                recursive: true,
-                force: true,
-              });
-              logger.log(`Successfully removed node_modules for app ${appId}`);
+            if (isFlutterProject(appPath)) {
+              // For Flutter projects, clean build cache
+              logger.log(`Cleaning Flutter build cache for app ${appId}`);
+              try {
+                const { spawn } = await import("node:child_process");
+                const cleanProcess = spawn("flutter", ["clean"], {
+                  cwd: appPath,
+                  stdio: "pipe",
+                });
+                
+                await new Promise((resolve, reject) => {
+                  cleanProcess.on("close", (code) => {
+                    if (code === 0) {
+                      logger.log(`Successfully cleaned Flutter cache for app ${appId}`);
+                      resolve(void 0);
+                    } else {
+                      logger.error(`Flutter clean failed for app ${appId} with code ${code}`);
+                      reject(new Error(`Flutter clean failed with code ${code}`));
+                    }
+                  });
+                  cleanProcess.on("error", reject);
+                });
+              } catch (error) {
+                logger.warn(`Flutter clean failed for app ${appId}:`, error);
+                // Continue anyway, don't fail the restart
+              }
             } else {
-              logger.log(`No node_modules directory found for app ${appId}`);
+              // For web projects, remove node_modules
+              const nodeModulesPath = path.join(appPath, "node_modules");
+              logger.log(
+                `Removing node_modules for app ${appId} at ${nodeModulesPath}`,
+              );
+              if (fs.existsSync(nodeModulesPath)) {
+                await fsPromises.rm(nodeModulesPath, {
+                  recursive: true,
+                  force: true,
+                });
+                logger.log(`Successfully removed node_modules for app ${appId}`);
+              } else {
+                logger.log(`No node_modules directory found for app ${appId}`);
+              }
             }
           }
 

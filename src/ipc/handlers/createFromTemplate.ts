@@ -26,6 +26,14 @@ export async function createFromTemplate({
     return;
   }
 
+  if (templateId === "flutter-macos") {
+    await copyDirectoryRecursive(
+      path.join(__dirname, "..", "..", "flutter-macos-scaffold"),
+      fullAppPath,
+    );
+    return;
+  }
+
   const template = await getTemplateOrThrow(templateId);
   if (!template.githubUrl) {
     throw new Error(`Template ${templateId} has no GitHub URL`);

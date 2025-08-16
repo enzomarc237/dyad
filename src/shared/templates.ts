@@ -43,6 +43,15 @@ export const localTemplatesData: Template[] = [
     isOfficial: true,
   },
   {
+    id: "flutter-macos",
+    title: "Flutter macOS Template",
+    description: "Uses Flutter, Dart, Material Design for native macOS apps.",
+    imageUrl:
+      "https://github.com/user-attachments/assets/flutter-macos-template-image",
+    isOfficial: true,
+    isExperimental: true,
+  },
+  {
     id: PORTAL_MINI_STORE_ID,
     title: "Portal: Mini Store Template",
     description: "Uses Neon DB, Payload CMS, Next.js",

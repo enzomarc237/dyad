@@ -48,6 +48,12 @@ import { getExtraProviderOptions } from "../utils/thinking_utils";
 import { safeSend } from "../utils/safe_sender";
 import { cleanFullResponse } from "../utils/cleanFullResponse";
 import { generateProblemReport } from "../processors/tsc";
+
+// Helper function to detect if an app is a Flutter project
+function isFlutterProject(appPath: string): boolean {
+  const pubspecPath = path.join(appPath, "pubspec.yaml");
+  return fs.existsSync(pubspecPath);
+}
 import { createProblemFixPrompt } from "@/shared/problem_prompt";
 import { AsyncVirtualFileSystem } from "../../../shared/VirtualFilesystem";
 import {
@@ -471,9 +477,11 @@ ${componentSnippet}
           );
         }
 
+        const appPath = getDyadAppPath(updatedChat.app.path);
         let systemPrompt = constructSystemPrompt({
-          aiRules: await readAiRules(getDyadAppPath(updatedChat.app.path)),
+          aiRules: await readAiRules(appPath),
           chatMode: settings.selectedChatMode,
+          isFlutterProject: isFlutterProject(appPath),
         });
 
         // Add information about mentioned apps if any

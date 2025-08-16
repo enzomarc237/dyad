@@ -8,6 +8,7 @@ import {
 
 import { CodeView } from "./CodeView";
 import { PreviewIframe } from "./PreviewIframe";
+import { FlutterPreview } from "./FlutterPreview";
 import { Problems } from "./Problems";
 import { ConfigurePanel } from "./ConfigurePanel";
 import { ChevronDown, ChevronUp, Logs } from "lucide-react";
@@ -16,6 +17,13 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Console } from "./Console";
 import { useRunApp } from "@/hooks/useRunApp";
 import { PublishPanel } from "./PublishPanel";
+import { useLoadApp } from "@/hooks/useLoadApp";
+
+// Helper function to detect if an app is a Flutter project
+function isFlutterProject(app: any): boolean {
+  if (!app?.files) return false;
+  return app.files.some((file: string) => file === "pubspec.yaml");
+}
 
 interface ConsoleHeaderProps {
   isOpen: boolean;
@@ -56,6 +64,9 @@ export function PreviewPanel() {
   const runningAppIdRef = useRef<number | null>(null);
   const key = useAtomValue(previewPanelKeyAtom);
   const appOutput = useAtomValue(appOutputAtom);
+  
+  // Check if the current app is a Flutter project
+  const isFlutter = app ? isFlutterProject(app) : false;
 
   const messageCount = appOutput.length;
   const latestMessage =
@@ -112,7 +123,11 @@ export function PreviewPanel() {
           <Panel id="content" minSize={30}>
             <div className="h-full overflow-y-auto">
               {previewMode === "preview" ? (
-                <PreviewIframe key={key} loading={loading} />
+                isFlutter ? (
+                  <FlutterPreview />
+                ) : (
+                  <PreviewIframe key={key} loading={loading} />
+                )
               ) : previewMode === "code" ? (
                 <CodeView loading={loading} app={app} />
               ) : previewMode === "configure" ? (
