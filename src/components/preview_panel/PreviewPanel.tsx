@@ -17,12 +17,7 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Console } from "./Console";
 import { useRunApp } from "@/hooks/useRunApp";
 import { PublishPanel } from "./PublishPanel";
-
-// Helper function to detect if an app is a Flutter project
-function isFlutterProject(app: any): boolean {
-  if (!app?.files) return false;
-  return app.files.some((file: string) => file === "pubspec.yaml");
-}
+import { isFlutterProjectFromFiles } from "@/shared/project_utils";
 
 interface ConsoleHeaderProps {
   isOpen: boolean;
@@ -65,7 +60,7 @@ export function PreviewPanel() {
   const appOutput = useAtomValue(appOutputAtom);
   
   // Check if the current app is a Flutter project
-  const isFlutter = app ? isFlutterProject(app) : false;
+  const isFlutter = app?.files ? isFlutterProjectFromFiles(app.files) : false;
 
   const messageCount = appOutput.length;
   const latestMessage =
@@ -84,11 +79,17 @@ export function PreviewPanel() {
         // let the start of the next app update it or unmount handle it.
       }
 
-      // Start the new app if an ID is selected
+      // Start the new app if an ID is selected (but not for Flutter projects)
       if (selectedAppId !== null) {
-        console.debug("Starting new app", selectedAppId);
-        runApp(selectedAppId); // Consider adding error handling for the promise if needed
-        runningAppIdRef.current = selectedAppId; // Update ref to the new running app ID
+        // Skip auto-start for Flutter projects - FlutterPreview will handle it manually
+        if (!isFlutter) {
+          console.debug("Starting new app", selectedAppId);
+          runApp(selectedAppId); // Consider adding error handling for the promise if needed
+          runningAppIdRef.current = selectedAppId; // Update ref to the new running app ID
+        } else {
+          console.debug("Skipping auto-start for Flutter app", selectedAppId);
+          runningAppIdRef.current = null; // Flutter apps are controlled manually
+        }
       } else {
         // If selectedAppId is null, ensure no app is marked as running
         runningAppIdRef.current = null;
