@@ -240,11 +240,11 @@ async function executeFlutterApp({
 }): Promise<void> {
   // For Flutter apps, we run flutter run -d macos
   const spawnedProcess = spawn(
-    "flutter run -d macos --debug",
-    [],
+    "flutter",
+    ["run", "-d", "macos", "--debug"],
     {
       cwd: appPath,
-      shell: true,
+      shell: false,
       stdio: "pipe",
       detached: false,
     },

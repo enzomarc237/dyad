@@ -13,7 +13,7 @@ void main() {
     expect(find.text('Built with ❤️ using Dyad'), findsOneWidget);
 
     // Tap the floating action button and trigger a frame.
-    await tester.tap(find.byIcon(Icons.waving_hand));
+    await tester.tap(find.byIcon(Icons.favorite));
     await tester.pump();
 
     // Verify that the snackbar appears.
